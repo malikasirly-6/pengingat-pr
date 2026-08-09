@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pengingat PR Kelas 11</title>
+  <style>
+    * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #f4f7fe; padding: 20px; max-width: 800px; margin: auto; color: #333; }
+    h1 { text-align: center; color: #4361ee; }
+    
+    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
+    .form-group { margin-bottom: 15px; }
+    label { font-weight: bold; display: block; margin-bottom: 5px; }
+    input, select, button { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+    button { background-color: #4361ee; color: white; font-weight: bold; border: none; cursor: pointer; transition: 0.2s; }
+    button:hover { background-color: #3700b3; }
+    
+    .controls { display: flex; gap: 10px; margin-bottom: 15px; }
+    .task-item { display: flex; align-items: center; justify-content: space-between; background: white; padding: 15px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-left: 5px solid #ccc; }
+    
+    /* Warna Prioritas */
+    .priority-High { border-left-color: #e63946; }
+    .priority-Medium { border-left-color: #ffb703; }
+    .priority-Low { border-left-color: #2a9d8f; }
+
+    .completed { text-decoration: line-through; opacity: 0.6; }
+    .task-info { flex-grow: 1; margin-left: 15px; }
+    .task-title { font-weight: bold; font-size: 16px; }
+    .task-meta { font-size: 12px; color: #666; }
+    .badge { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; color: white; }
+    .bg-High { background-color: #e63946; }
+    .bg-Medium { background-color: #ffb703; color: #333; }
+    .bg-Low { background-color: #2a9d8f; }
+    .btn-delete { background: #e63946; width: auto; padding: 5px 10px; font-size: 12px; }
+  </style>
+</head>
+<body>
+
+  <h1>📝 Pengingat PR Sekolahan</h1>
+
+  <div class="card">
+    <h3>Tambah PR Baru</h3>
+    <form id="prForm">
+      <div class="form-group">
+        <label>Mata Pelajaran:</label>
+        <input type="text" id="mapel" placeholder="Contoh: Matematika, Fisika" required>
+      </div>
+      <div class="form-group">
+        <label>Judul Tugas / PR:</label>
+        <input type="text" id="judul" placeholder="Contoh: Latihan Soal Bab 2 Hal 45" required>
+      </div>
+      <div class="form-group">
+        <label>Tenggat Waktu (Deadline):</label>
+        <input type="datetime-local" id="deadline" required>
+      </div>
+      <div class="form-group">
+        <label>Tingkat Prioritas:</label>
+        <select id="prioritas">
+          <option value="High">High (Penting & Mendesak)</option>
+          <option value="Medium" selected>Medium (Biasa)</option>
+          <option value="Low">Low (Bisa Didepan)</option>
+        </select>
+      </div>
+      <button type="submit">Simpan PR</button>
+    </form>
+  </div>
+
+  <div class="controls">
+    <input type="text" id="searchMapel" placeholder="🔍 Cari berdasarkan Mapel..." oninput="renderTasks()">
+    <select id="sortBy" onchange="renderTasks()">
+      <option value="deadline">Urutkan: Deadline Terdekat</option>
+      <option value="mapel">Urutkan: Nama Mapel</option>
+    </select>
+  </div>
+
+  <div id="taskList"></div>
+
+  <script>
+    let tasks = JSON.parse(localStorage.getItem('pr_tasks')) || [];
+
+    // Minta izin Notifikasi saat web dibuka
+    if ("Notification" in window && Notification.permission !== "granted") {
+      Notification.requestPermission();
+    }
+
+    // Tambah PR Baru
+    document.getElementById('prForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const newTask = {
+        id: Date.now(),
+        mapel: document.getElementById('mapel').value,
+        judul: document.getElementById('judul').value,
+        deadline: document.getElementById('deadline').value,
+        prioritas: document.getElementById('prioritas').value,
+        isDone: false,
+        notified: false
+      };
+
+      tasks.push(newTask);
+      saveAndRender();
+      this.reset();
+    });
+
+    // Simpan ke LocalStorage dan Render
+    function saveAndRender() {
+      localStorage.setItem('pr_tasks', JSON.stringify(tasks));
+      renderTasks();
+    }
+
+    // Status Centang Selesai
+    function toggleComplete(id) {
+      tasks = tasks.map(task => {
+        if (task.id === id) task.isDone = !task.isDone;
+        return task;
+      });
+      saveAndRender();
+    }
+
+    // Hapus Tugas
+    function deleteTask(id) {
+      tasks = tasks.filter(task => task.id !== id);
+      saveAndRender();
+    }
+
+    // Tampilkan Tugas dengan Filter & Sort
+    function renderTasks() {
+      const listElement = document.getElementById('taskList');
+      const searchQuery = document.getElementById('searchMapel').value.toLowerCase();
+      const sortBy = document.getElementById('sortBy').value;
+
+      listElement.innerHTML = '';
+
+      // Filter Mapel
+      let filteredTasks = tasks.filter(task => 
+        task.mapel.toLowerCase().includes(searchQuery)
+      );
+
+      // Sorting (Urutan)
+      filteredTasks.sort((a, b) => {
+        if (sortBy === 'deadline') {
+          return new Date(a.deadline) - new Date(b.deadline);
+        } else {
+          return a.mapel.localeCompare(b.mapel);
+        }
+      });
+
+      if (filteredTasks.length === 0) {
+        listElement.innerHTML = '<p style="text-align:center; color:#888;">Belum ada PR. Mantap, santai dulu! 😎</p>';
+        return;
+      }
+
+      filteredTasks.forEach(task => {
+        const dateObj = new Date(task.deadline);
+        const formattedDate = dateObj.toLocaleString('id-ID', { 
+          dateStyle: 'medium', timeStyle: 'short' 
+        });
+
+        const taskDiv = document.createElement('div');
+        taskDiv.className = `task-item priority-${task.prioritas} ${task.isDone ? 'completed' : ''}`;
+        
+        taskDiv.innerHTML = `
+          <input type="checkbox" ${task.isDone ? 'checked' : ''} onclick="toggleComplete(${task.id})">
+          <div class="task-info">
+            <span class="badge bg-${task.prioritas}">${task.prioritas}</span>
+            <div class="task-title">${task.judul}</div>
+            <div class="task-meta">📚 <b>${task.mapel}</b> | ⏰ ${formattedDate}</div>
+          </div>
+          <button class="btn-delete" onclick="deleteTask(${task.id})">Hapus</button>
+        `;
+
+        listElement.appendChild(taskDiv);
+      });
+    }
+
+    // Fitur Notifikasi Otomatis (Cek setiap 1 menit)
+    function checkNotifications() {
+      const now = new Date().getTime();
+      const oneDayInMs = 24 * 60 * 60 * 1000;
+
+      tasks.forEach(task => {
+        if (!task.isDone && !task.notified) {
+          const deadlineTime = new Date(task.deadline).getTime();
+          const timeLeft = deadlineTime - now;
+
+          // Jika waktu tersisa kurang dari atau sama dengan 24 jam (H-1)
+          if (timeLeft > 0 && timeLeft <= oneDayInMs) {
+            if (Notification.permission === "granted") {
+              new Notification(`📌 PENGINGAT PR: ${task.mapel}`, {
+                body: `Tugas "${task.judul}" harus dikumpul besok! (${new Date(task.deadline).toLocaleTimeString()})`,
+                icon: 'https://cdn-icons-png.flaticon.com/512/2921/2921226.png'
+              });
+              task.notified = true; // Agar tidak terus-menerus kirim notif
+              localStorage.setItem('pr_tasks', JSON.stringify(tasks));
+            }
+          }
+        }
+      });
+    }
+
+    // Jalankan pengecekan notifikasi tiap 60 detik
+    setInterval(checkNotifications, 60000);
+
+    // Render pertama kali pas aplikasi dibuka
+    renderTasks();
+  </script>
+</body>
+</html>
